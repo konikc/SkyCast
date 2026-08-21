@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyCast - Метеорадар Осадков</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0e1a2b; color: white; }
+        
+        header {
+            background: linear-gradient(135deg, #1a2a3a 0%, #0e1a2b 100%);
+            padding: 20px;
+            border-bottom: 2px solid #228B22;
+        }
+        
+        h1 { color: #98FB98; font-size: 28px; margin-bottom: 5px; }
+        .subtitle { color: #aaa; font-size: 14px; }
+        
+        .container { display: flex; height: calc(100vh - 80px); }
+        
+        .sidebar {
+            width: 320px;
+            background: #1a2a3a;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #2a3a4a;
+        }
+        
+        .map-container { flex: 1; position: relative; }
+        #map { width: 100%; height: 100%; }
+        
+        .control-group { margin-bottom: 20px; }
+        .control-group label { display: block; margin-bottom: 8px; color: #ccc; font-size: 14px; }
+        
+        select, button {
+            width: 100%;
+            padding: 12px;
+            font-size: 15px;
+            border-radius: 6px;
+            border: none;
+            background: #2a3a4a;
+            color: white;
+            cursor: pointer;
+        }
+        
+        select:focus, button:focus { outline: 2px solid #228B22; }
+        
+        button {
+            background: linear-gradient(135deg, #228B22 0%, #32CD32 100%);
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(34, 139, 34, 0.4); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .status-box {
+            background: #0e1a2b;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            border-left: 4px solid #228B22;
+        }
+        
+        .status-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+        .status-label { color: #aaa; }
+        .status-value { color: #98FB98; font-weight: bold; }
+        
+        .legend {
+            background: #0e1a2b;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .legend-title { font-size: 14px; color: #ccc; margin-bottom: 10px; }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            margin-right: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .nowcast-panel {
+            background: #0e1a2b;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .nowcast-inputs { display: flex; gap: 10px; margin-bottom: 10px; }
+        .nowcast-inputs input {
+            flex: 1;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #2a3a4a;
+            background: #1a2a3a;
+            color: white;
+            font-size: 13px;
+        }
+        
+        .nowcast-result {
+            background: #1a2a3a;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .nowcast-result.show { display: block; }
+        .nowcast-intensity { font-size: 24px; font-weight: bold; color: #98FB98; }
+        .nowcast-desc { font-size: 14px; color: #ccc; margin-top: 5px; }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(14, 26, 43, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .loading-overlay.show { display: flex; }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #2a3a4a;
+            border-top-color: #228B22;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .radar-image { max-width: 100%; border-radius: 8px; margin-top: 15px; }
+        
+        footer {
+            text-align: center;
+            padding: 15px;
+            background: #1a2a3a;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🌤️ SkyCast</h1>
+        <div class="subtitle">Метеорадар осадков на реальных данных</div>
+    </header>
+    
+    <div class="container">
+        <aside class="sidebar">
+            <div class="control-group">
+                <label for="district">Федеральный округ</label>
+                <select id="district">
+                    <option value="ЦФО">Центральный ФО</option>
+                    <option value="СЗФО">Северо-Западный ФО</option>
+                    <option value="ЮФО">Южный ФО</option>
+                    <option value="СКФО">Северо-Кавказский ФО</option>
+                    <option value="ПФО">Приволжский ФО</option>
+                    <option value="УФО">Уральский ФО</option>
+                    <option value="СФО">Сибирский ФО</option>
+                    <option value="ДФО">Дальневосточный ФО</option>
+                </select>
+            </div>
+            
+            <button id="loadBtn" onclick="loadRadar()">🔄 Обновить карту</button>
+            
+            <div class="status-box">
+                <div class="status-row">
+                    <span class="status-label">Станций:</span>
+                    <span class="status-value" id="stationsCount">-</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Обновлено:</span>
+                    <span class="status-value" id="lastUpdate">-</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Статус:</span>
+                    <span class="status-value" id="status">Ожидание</span>
+                </div>
+            </div>
+            
+            <div class="legend">
+                <div class="legend-title">Интенсивность осадков</div>
+                <div class="legend-item"><div class="legend-color" style="background:#000000"></div>Без осадков</div>
+                <div class="legend-item"><div class="legend-color" style="background:#98FB98"></div>Слабые</div>
+                <div class="legend-item"><div class="legend-color" style="background:#228B22"></div>Умеренные</div>
+                <div class="legend-item"><div class="legend-color" style="background:#FFD700"></div>Сильные</div>
+                <div class="legend-item"><div class="legend-color" style="background:#DC143C"></div>Очень сильные</div>
+                <div class="legend-item"><div class="legend-color" style="background:#9400D3"></div>Экстремальные/гроза</div>
+            </div>
+            
+            <div class="nowcast-panel">
+                <div class="legend-title">Точечный запрос</div>
+                <div class="nowcast-inputs">
+                    <input type="number" id="nowcastLat" placeholder="Широта" step="0.01" value="55.75">
+                    <input type="number" id="nowcastLon" placeholder="Долгота" step="0.01" value="37.62">
+                </div>
+                <button onclick="queryNowcast()" style="padding:8px;font-size:13px;">Запросить</button>
+                <div class="nowcast-result" id="nowcastResult">
+                    <div class="nowcast-intensity" id="ncIntensity">-</div>
+                    <div class="nowcast-desc" id="ncDescription">-</div>
+                </div>
+            </div>
+            
+            <img id="radarImage" class="radar-image" alt="Радарная карта" />
+        </aside>
+        
+        <main class="map-container">
+            <div id="map"></div>
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="spinner"></div>
+            </div>
+        </main>
+    </div>
+    
+    <footer>
+        SkyCast v1.0 | Данные: METAR (aviationweather.gov), WMO (worldweather.wmo.int)
+    </footer>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Инициализация карты
+        const map = L.map('map').setView([55.75, 37.62], 6);
+        
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+        
+        let stationsLayer = null;
+        let radarOverlay = null;
+        
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').classList.toggle('show', show);
+            document.getElementById('loadBtn').disabled = show;
+        }
+        
+        function updateStatus(text, stations, timestamp) {
+            document.getElementById('status').textContent = text;
+            document.getElementById('stationsCount').textContent = stations || '-';
+            if (timestamp) {
+                const date = new Date(timestamp);
+                document.getElementById('lastUpdate').textContent = date.toLocaleTimeString('ru-RU');
+            }
+        }
+        
+        async function loadRadar() {
+            const district = document.getElementById('district').value;
+            showLoading(true);
+            updateStatus('Загрузка...', '-', null);
+            
+            try {
+                const response = await fetch('/api/radar?district=' + encodeURIComponent(district));
+                const data = await response.json();
+                
+                if (data.image) {
+                    document.getElementById('radarImage').src = data.image;
+                    updateStatus('OK', data.stations_count, data.timestamp);
+                    
+                    // Загружаем станции для отображения на карте
+                    loadStations(district);
+                } else {
+                    updateStatus('Ошибка: ' + (data.error || 'Нет данных'), '-', null);
+                }
+            } catch (e) {
+                updateStatus('Ошибка: ' + e.message, '-', null);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        async function loadStations(district) {
+            try {
+                const response = await fetch('/api/stations?district=' + encodeURIComponent(district));
+                const data = await response.json();
+                
+                if (stationsLayer) {
+                    map.removeLayer(stationsLayer);
+                }
+                
+                stationsLayer = L.layerGroup();
+                
+                data.stations.forEach(station => {
+                    const color = getIntesityColor(station.intensity);
+                    const marker = L.circleMarker([station.latitude, station.longitude], {
+                        radius: 5,
+                        fillColor: color,
+                        color: '#fff',
+                        weight: 1,
+                        opacity: 0.8,
+                        fillOpacity: 0.7
+                    });
+                    
+                    marker.bindPopup(`
+                        <strong>${station.source}</strong><br>
+                        Интенсивность: ${station.intensity.toFixed(1)}<br>
+                        Станция: ${station.station}
+                    `);
+                    
+                    stationsLayer.addLayer(marker);
+                });
+                
+                stationsLayer.addTo(map);
+            } catch (e) {
+                console.error('Ошибка загрузки станций:', e);
+            }
+        }
+        
+        function getIntesityColor(intensity) {
+            if (intensity < 0.5) return '#000000';
+            if (intensity < 1.5) return '#98FB98';
+            if (intensity < 2.5) return '#228B22';
+            if (intensity < 3.5) return '#FFD700';
+            if (intensity < 4.5) return '#DC143C';
+            return '#9400D3';
+        }
+        
+        async function queryNowcast() {
+            const lat = parseFloat(document.getElementById('nowcastLat').value);
+            const lon = parseFloat(document.getElementById('nowcastLon').value);
+            const district = document.getElementById('district').value;
+            
+            if (isNaN(lat) || isNaN(lon)) {
+                alert('Введите корректные координаты');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/nowcast?lat=${lat}&lon=${lon}&district=${encodeURIComponent(district)}`);
+                const data = await response.json();
+                
+                const resultDiv = document.getElementById('nowcastResult');
+                resultDiv.classList.add('show');
+                
+                document.getElementById('ncIntensity').textContent = 
+                    `${data.intensity.toFixed(1)} / 5`;
+                document.getElementById('ncIntensity').style.color = data.color;
+                document.getElementById('ncDescription').textContent = 
+                    `${data.description} (вероятность: ${(data.probability * 100).toFixed(0)}%)`;
+            } catch (e) {
+                console.error('Ошибка nowcast:', e);
+            }
+        }
+        
+        // Автозагрузка при старте
+        loadRadar();
+        
+        // Автообновление каждые 5 минут
+        setInterval(loadRadar, 300000);
+    </script>
+</body>
+</html>
