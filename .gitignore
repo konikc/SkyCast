@@ -1,0 +1,52 @@
+```
+# Compressed archives
+*.zip
+*.tar.gz
+*.tar
+*.gz
+*.bz2
+*.xz
+*.7z
+*.tgz
+
+# Executable scripts
+*.sh
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+dist/
+build/
+target/
+.gradle/
+
+# Editors
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+```
