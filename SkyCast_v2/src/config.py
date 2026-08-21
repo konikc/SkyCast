@@ -7,41 +7,81 @@ SkyCast v2 - Конфигурация
 # =============================================================================
 # ОСНОВНОЙ API - RADAR WMS (savelov)
 # =============================================================================
+# Репозиторий: https://github.com/savelov/radar-wms
+# Документация: README, INSTALL, baltrad_wms.cfg.template
+# WMS Server: MapServer с поддержкой OGC WMS 1.3.0
+# Формат данных: HDF5 с радарными полями осадков (mm/h) и отражаемостью (dBZ)
+# =============================================================================
 RADAR_WMS_CONFIG = {
-    # Базовый URL WMS сервера (настраивается при деплое)
-    # Для локального теста: http://localhost:8081
-    # Для продакшена: свой инстанс на бесплатном хостинге
+    # Базовый URL WMS сервера
+    # ВАЖНО: radar-wms требует самостоятельной установки (MapServer + Python + HDF5 данные)
+    # Инструкции: см. INSTALL в репозитории savelov/radar-wms
+    # Для тестирования можно использовать демо-сервер или поднять локально
     "base_url": "http://localhost:8081",
     
+    # Альтернативные публичные WMS серверы (если доступны)
+    "alternative_urls": [
+        "https://radar-south.ru/cgi-bin/mapserv.fcgi",  # Юг России (может быть недоступен)
+        "http://baltrad.eu/wms"  # Европейская сеть BALTRAD
+    ],
+    
     # Доступные слои (из baltrad_wms.cfg.template)
+    # Слои определяются в конфигурации MapServer (baltrad_wms.map)
     "layers": {
         "radar_composite": {
             "name": "radar_composite",
             "title": "Композитная карта осадков",
+            "description": "Основные радарные данные об осадках",
             "unit": "mm/h",
-            "style": "Gimet_precip_style"
+            "style": "Gimet_precip_style",
+            "data_source": "HDF5 radar files from BALTRAD network"
         },
         "radar_dbz": {
             "name": "radar_dbz", 
             "title": "Отражаемость (dBZ)",
+            "description": "Сырые данные радиолокационной отражаемости",
             "unit": "dBZ",
-            "style": "Radar_dbzh_style"
-        },
-        "nowcast": {
-            "name": "nowcast",
-            "title": "Прогноз осадков (30-120 мин)",
-            "unit": "probability",
-            "style": "nowcast_style"
+            "style": "Gimet_dbzh_style",
+            "data_source": "HDF5 radar files"
         },
         "precip_accum_1h": {
             "name": "precip_accum_1h",
             "title": "Накопленные осадки за 1 час",
+            "description": "Суммарное количество осадков за последний час",
             "unit": "mm",
-            "style": "Gimet_summ_style"
+            "style": "Gimet_summ_style",
+            "data_source": "Calculated from radar composite"
+        },
+        "phenomena": {
+            "name": "phenomena",
+            "title": "Метеоявления",
+            "description": "Типы метеорологических явлений (облака, грозы, осадки)",
+            "unit": "category",
+            "style": "Gimet_phenomena_style",
+            "data_source": "Classified radar data"
         }
     },
     
-    # Параметры WMS запроса по умолчанию
+    # Шкалы интенсивности (из Gimet_precip_style в baltrad_wms.cfg.template)
+    # SYNTAX: number = name,from,to,R,G,B
+    "precip_scale": [
+        {"level": 0, "range": [0, 1], "label": "нет осадков", "color": [204, 204, 204]},
+        {"level": 1, "range": [1, 78], "label": "0.10 мм/ч", "color": [155, 155, 155]},
+        {"level": 2, "range": [78, 93], "label": "0.30 мм/ч", "color": [135, 135, 135]},
+        {"level": 3, "range": [93, 100], "label": "0.50 мм/ч", "color": [0, 85, 255]},
+        {"level": 4, "range": [100, 110], "label": "1.00 мм/ч", "color": [0, 0, 127]},
+        {"level": 5, "range": [110, 125], "label": "3.00 мм/ч", "color": [255, 255, 0]},
+        {"level": 6, "range": [125, 132], "label": "5.00 мм/ч", "color": [200, 239, 4]},
+        {"level": 7, "range": [132, 137], "label": "7.00 мм/ч", "color": [255, 170, 0]},
+        {"level": 8, "range": [137, 142], "label": "10.00 мм/ч", "color": [255, 85, 0]},
+        {"level": 9, "range": [142, 151], "label": "20.00 мм/ч", "color": [255, 0, 0]},
+        {"level": 10, "range": [151, 157], "label": "30.00 мм/ч", "color": [128, 255, 128]},
+        {"level": 11, "range": [157, 164], "label": "50.00 мм/ч", "color": [0, 170, 0]},
+        {"level": 12, "range": [164, 174], "label": "100.00 мм/ч", "color": [255, 131, 245]},
+        {"level": 13, "range": [174, 255], "label": ">100 мм/ч", "color": [208, 0, 208]}
+    ],
+    
+    # Параметры WMS запроса по умолчанию (OGC WMS 1.3.0)
     "wms_params": {
         "SERVICE": "WMS",
         "VERSION": "1.3.0",
@@ -53,11 +93,40 @@ RADAR_WMS_CONFIG = {
         "HEIGHT": 600
     },
     
-    # REST API для nowcasting (из nowcast.wsgi)
+    # REST API для nowcasting (из nowcast.wsgi в репозитории)
+    # Пример: http://localhost/nowcast_wsgi?lon=36.97&lat=55.21
+    # Возвращает: 'nan' или вероятность осадков (0-100%)
     "nowcast_api": "/nowcast_wsgi",
     
-    # Endpoint для получения временных меток
-    "capabilities_endpoint": "?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities"
+    # Endpoint для получения GetCapabilities (список слоев и временных меток)
+    "capabilities_endpoint": "?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+    
+    # Установка radar-wms (из INSTALL):
+    # sudo apt install libapache2-mod-wsgi-py3 python3-distutils python3-mapscript \\
+    #     ttf-mscorefonts-installer python3-netcdf4 python3-rasterio python3-pyproj \\
+    #     python3-dateutil h5py pyproj numpy gdal
+    # sudo a2enmod wsgi
+    # Копирование конфигов и настройка Apache
+    "installation_notes": {
+        "dependencies": [
+            "Python 2.6+ or 3.x",
+            "MapServer 6+ with Python bindings",
+            "SqlAlchemy",
+            "h5py", "pyproj", "numpy", "GDAL",
+            "Apache with mod_wsgi"
+        ],
+        "ubuntu_install": [
+            "sudo apt install libapache2-mod-wsgi-py3 python3-distutils python3-mapscript",
+            "sudo apt install ttf-mscorefonts-installer python3-netcdf4 python3-rasterio",
+            "sudo apt install python3-pyproj python3-dateutil h5py pyproj numpy gdal",
+            "sudo a2enmod wsgi"
+        ],
+        "config_files": [
+            "baltrad_wms.cfg.template -> /path/to/baltrad_wms.cfg",
+            "baltrad_wms.map -> /path/to/baltrad_wms.map",
+            "baltrad_wsgi.py -> /var/www/cgi-bin/baltrad_wsgi.py"
+        ]
+    }
 }
 
 # =============================================================================

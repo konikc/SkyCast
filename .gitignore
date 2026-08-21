@@ -4,74 +4,49 @@
 *.tar.gz
 *.tar
 *.gz
-*.tgz
 *.bz2
 *.xz
 *.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
+*.tgz
 
-# Dependencies
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-ENV/
-.venv/
+# Executable scripts
+*.sh
+
+# Logs
+*.log
+
+# Environment files
 .env
 .env.local
-.env.
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.git/
+*.env.*
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
 .mypy_cache/
 .pytest_cache/
-.hypothesis/
-
-# Build artifacts
 dist/
 build/
-*.egg-info/
-.eggs/
-.installed.cfg
-lib/
-lib64/
-parts/
-sdist/
-develop-eggs/
-downloads/
-eggs/
-.eggs/
-.ipython/
-.jupyter/
-.ipynb_checkpoints/
+target/
+.gradle/
+
+# Editors
+.vscode/
+.idea/
 
 # OS generated files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
 ```

@@ -144,7 +144,19 @@ APP_CONFIG = {
 
 ### Вариант 1: Render.com
 
-1. Создайте `Dockerfile`:
+**Важно:** В настройках Render укажите команду запуска:
+
+```bash
+cd SkyCast_v2/src && uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+Или используйте предоставленный `start.sh`:
+
+```bash
+./start.sh
+```
+
+1. Создайте `Dockerfile` (уже включён в проект):
 ```dockerfile
 FROM python:3.11-slim
 WORKDIR /app
@@ -152,13 +164,17 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY templates/ ./templates/
+ENV PYTHONPATH=/app/src
 EXPOSE 8080
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
+WORKDIR /app/src
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
 ```
 
 2. Push в GitHub
 3. Connect repository на render.com
-4. Deploy!
+4. **Build Command:** оставьте пустым или `echo "build done"`
+5. **Start Command:** `cd SkyCast_v2/src && uvicorn main:app --host 0.0.0.0 --port $PORT`
+6. Deploy!
 
 ### Вариант 2: Railway.app
 

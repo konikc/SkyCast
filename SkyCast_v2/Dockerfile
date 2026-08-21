@@ -22,9 +22,12 @@ RUN mkdir -p /app/logs
 ENV PYTHONUNBUFFERED=1
 ENV HOST=0.0.0.0
 ENV PORT=8080
+# Важно: добавляем src в PYTHONPATH для корректных импортов
+ENV PYTHONPATH=/app/src
 
 # Порт по умолчанию
 EXPOSE 8080
 
-# Запуск приложения
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Запуск приложения из директории src
+WORKDIR /app/src
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

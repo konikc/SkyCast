@@ -67,7 +67,9 @@ app = FastAPI(
 )
 
 # Шаблоны и статика
-templates = Jinja2Templates(directory="templates")
+import os
+template_dir = os.path.join(os.path.dirname(__file__), "..", "templates")
+templates = Jinja2Templates(directory=template_dir)
 
 
 # =============================================================================
